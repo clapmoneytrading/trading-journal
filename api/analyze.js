@@ -9,8 +9,7 @@ export default async function handler(request, response) {
   response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Browsers will send an OPTIONS request first to check permissions (preflight)
-  // We need to handle this by sending a successful response.
+  // Handle the browser's preflight OPTIONS request
   if (request.method === 'OPTIONS') {
     return response.status(200).end();
   }
@@ -37,7 +36,10 @@ export default async function handler(request, response) {
       - Strategy: ${trade.strategy || 'Not specified'}
       - Notes: ${trade.notes || 'Not specified'}`;
     
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+    // =================================================================
+    // THE FIX IS ON THIS LINE: Using a newer, recommended model name
+    // =================================================================
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
 
     const geminiResponse = await fetch(apiUrl, {
       method: 'POST',
@@ -49,6 +51,7 @@ export default async function handler(request, response) {
 
     if (!geminiResponse.ok) {
         const errorBody = await geminiResponse.json();
+        // Pass the specific error from Google back to the front-end
         throw new Error(errorBody.error?.message || 'Failed to fetch analysis from Gemini API.');
     }
 
@@ -56,7 +59,7 @@ export default async function handler(request, response) {
     response.status(200).json(data);
 
   } catch (error) {
-    console.error(error);
+    console.error("Error in serverless function:", error);
     response.status(500).json({ error: error.message });
   }
 }
