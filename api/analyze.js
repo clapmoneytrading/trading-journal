@@ -1,12 +1,25 @@
-// This is the entire content of the file: /api/analyze.js
+// This is the entire updated content for: /api/analyze.js
 
 export default async function handler(request, response) {
-  // Only allow POST requests
+  // Define which domain is allowed to access this function
+  const allowedOrigin = 'https://clapmoneytrading.com';
+
+  // Set the CORS headers to allow requests from your WordPress site
+  response.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+  response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // Browsers will send an OPTIONS request first to check permissions (preflight)
+  // We need to handle this by sending a successful response.
+  if (request.method === 'OPTIONS') {
+    return response.status(200).end();
+  }
+
+  // Only allow POST requests for the actual analysis
   if (request.method !== 'POST') {
     return response.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  // Get the secret API key from the environment variables
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
@@ -14,26 +27,18 @@ export default async function handler(request, response) {
   }
 
   try {
-    const trade = request.body.trade; // Get the trade data sent from the front-end
-
-    // Create the prompt for the AI
+    const trade = request.body.trade;
     const prompt = `
       Act as a professional trading coach. Analyze the following trade and provide constructive feedback.
-      Be concise and encouraging. Structure your feedback into "What Went Well" and "Areas for Improvement".
-
+      Be concise and encouraging. Structure your feedback into 'What Went Well' and 'Areas for Improvement'.
       Trade Details:
       - Asset: ${trade.symbol} (${trade.assetType || 'Stock'})
       - Direction: ${trade.direction}
-      - Strategy / Reason for Entry: ${trade.strategy || 'Not specified'}
-      - Trader's Notes / Lesson Learned: ${trade.notes || 'Not specified'}
-
-      Provide your analysis based only on this information.
-    `;
+      - Strategy: ${trade.strategy || 'Not specified'}
+      - Notes: ${trade.notes || 'Not specified'}`;
     
-    // The Gemini API endpoint
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
 
-    // Call the Gemini API from the server-side
     const geminiResponse = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -44,13 +49,10 @@ export default async function handler(request, response) {
 
     if (!geminiResponse.ok) {
         const errorBody = await geminiResponse.json();
-        console.error("Gemini API Error:", errorBody);
-        throw new Error('Failed to fetch analysis from Gemini API.');
+        throw new Error(errorBody.error?.message || 'Failed to fetch analysis from Gemini API.');
     }
 
     const data = await geminiResponse.json();
-    
-    // Send the successful response back to the front-end
     response.status(200).json(data);
 
   } catch (error) {
